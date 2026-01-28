@@ -102,6 +102,17 @@
     function renderRequests(requests) {
         const list = document.getElementById('requests-list');
         const counter = document.getElementById('counter');
+        
+        // Save currently open details
+        const openIds = new Set();
+        document.querySelectorAll('.card-body').forEach(el => {
+            if (el.style.display === 'block') {
+                // ID format is "body-{id}"
+                const id = el.id.replace('body-', '');
+                openIds.add(id);
+            }
+        });
+
         counter.innerText = `${requests.length} requests received`;
         
         if (requests.length === 0) {
@@ -121,6 +132,10 @@
                 bodyDisplay = req.body;
             }
 
+            // Check if this item was previously open
+            const isOpen = openIds.has(String(req.id));
+            const displayStyle = isOpen ? 'block' : 'none';
+
             return `
                 <div class="request-card">
                     <div class="card-header" onclick="toggleDetails(${req.id})">
@@ -130,7 +145,7 @@
                         </div>
                         <span class="timestamp">${date}</span>
                     </div>
-                    <div class="card-body" id="body-${req.id}">
+                    <div class="card-body" id="body-${req.id}" style="display: ${displayStyle}">
                         <span class="section-title">Headers</span>
                         <pre>${headers}</pre>
                         <span class="section-title">Body</span>
