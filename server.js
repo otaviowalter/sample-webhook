@@ -25,6 +25,14 @@ db.exec(`
   )
 `);
 
+// Settings State
+let settings = {
+  active: true,
+  simulateDowntime: false,
+  errorStatusCode: 400,
+  errorBody: JSON.stringify({ error: "Bad Request", message: "Webhook is disabled" }, null, 2)
+};
+
 // Middleware to parse various body types
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -35,6 +43,25 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // Webhook endpoint - Capture everything
 app.all("/webhook", (req, res) => {
+  // Logic for Enable/Disable and Simulation
+  if (!settings.active) {
+    if (settings.simulateDowntime) {
+      // Simulate "does not exist" -> 404
+      console.log('Webhook disabled (Downtime Simulation): returning 404');
+      return res.status(404).send("Cannot " + req.method + " " + req.originalUrl);
+    } else {
+      console.log(`Webhook disabled: returning ${settings.errorStatusCode}`);
+      // Try to parse JSON for the response body
+      try {
+        const jsonBody = JSON.parse(settings.errorBody);
+        return res.status(settings.errorStatusCode).json(jsonBody);
+      } catch (e) {
+        // Send as text if not valid JSON
+        return res.status(settings.errorStatusCode).send(settings.errorBody);
+      }
+    }
+  }
+
   const method = req.method;
   const headers = JSON.stringify(req.headers);
   const query = JSON.stringify(req.query);
@@ -58,6 +85,23 @@ app.get("/api/requests", (req, res) => {
   const stmt = db.prepare("SELECT * FROM requests ORDER BY id DESC");
   const requests = stmt.all();
   res.json(requests);
+});
+
+// API to get settings
+app.get("/api/settings", (req, res) => {
+  res.json(settings);
+});
+
+// API to update settings
+app.post("/api/settings", (req, res) => {
+  const newSettings = req.body;
+  if (typeof newSettings.active === 'boolean') settings.active = newSettings.active;
+  if (typeof newSettings.simulateDowntime === 'boolean') settings.simulateDowntime = newSettings.simulateDowntime;
+  if (newSettings.errorStatusCode) settings.errorStatusCode = parseInt(newSettings.errorStatusCode);
+  if (newSettings.errorBody) settings.errorBody = newSettings.errorBody;
+  
+  console.log("Settings updated:", settings);
+  res.json(settings);
 });
 
 // API to clear requests
