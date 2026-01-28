@@ -4,7 +4,14 @@ const path = require("path");
 
 const app = express();
 const port = process.env.PORT || 3010;
-const db = new Database("webhooks.db");
+
+// On Vercel, the file system is read-only except for /tmp
+// We use /tmp/webhooks.db if running on Vercel, otherwise local webhooks.db
+const dbPath = process.env.VERCEL 
+  ? path.join("/tmp", "webhooks.db") 
+  : "webhooks.db";
+
+const db = new Database(dbPath);
 
 // Initialize DB
 db.exec(`
